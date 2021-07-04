@@ -1,4 +1,4 @@
-use crate::board::Position;
+use crate::position::Position;
 use std::cmp::max;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

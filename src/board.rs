@@ -1,63 +1,22 @@
 use crate::piece::PieceKind;
+use crate::position::Position;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Position(usize);
-
-impl Position {
-    pub fn new(index: usize) -> Position {
-        assert!(index < 81);
-        Position(index)
-    }
-
-    pub fn from_ij(i: usize, j: usize) -> Option<Position> {
-        if i < 9 && j < 9 {
-            Some(Position(i * 9 + j))
-        } else {
-            None
-        }
-    }
-
-    pub fn to_i(self) -> usize {
-        self.0 / 9
-    }
-
-    pub fn to_j(self) -> usize {
-        self.0 % 9
-    }
-
-    pub fn to_ij(self) -> (usize, usize) {
-        (self.to_i(), self.to_j())
-    }
-
-    pub fn add(self, di: isize, dj: isize) -> Option<Position> {
-        let (i, j) = self.to_ij();
-        Self::from_ij((i as isize + di) as usize, (j as isize + dj) as usize)
-    }
-
-    pub fn on_kaku(self, other: Self) -> bool {
-        let (ai, aj) = self.to_ij();
-        let (bi, bj) = self.to_ij();
-
-        (ai as isize - bi as isize).abs() == (aj as isize - bj as isize).abs()
-    }
-
-    pub fn on_hisha(self, other: Self) -> bool {
-        let (ai, aj) = self.to_ij();
-        let (bi, bj) = self.to_ij();
-
-        ai == bi || aj == bj
-    }
+pub struct Cell {
+    piece: PieceKind,
+    pid: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Board {
-    field: [Option<PieceKind>; 81],
-    puttable: Vec<PieceKind>,
+    cells: [Option<Cell>; 81],
+    usable: [Vec<PieceKind>; 2],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Game {
-    boards: [Board; 2],
+    board: Board,
+    turn: usize,
 }
 
 impl Default for Board {
@@ -69,9 +28,34 @@ impl Default for Board {
 impl Board {
     pub fn new() -> Self {
         Self {
-            field: [None; 81],
-            puttable: vec![],
+            cells: [None; 81],
+            usable: [vec![], vec![]],
         }
+    }
+
+    pub fn is_movable(&self, pid: usize, orig: Position, target: Position) -> bool {
+        // 元の駒が存在して自分の駒であることを確認
+        let orig_is_mine = self.cells[orig.index()]
+            .map(|cell| cell.pid == pid)
+            .unwrap_or(false);
+        // 行き先が敵の駒または空白であることを確認
+        let target_enemy_or_empty = self.cells[target.index()]
+            .map(|cell| cell.pid != pid)
+            .unwrap_or(true);
+        // 動き方がルールに沿っていることを確認
+        let move_following_rule = self.cells[orig.index()]
+            .map(|cell| cell.piece.is_movable(pid, orig, target))
+            .unwrap(); // 存在することは確認済み
+
+        orig_is_mine && target_enemy_or_empty && move_following_rule
+    }
+
+    pub fn do_move(&mut self, pid: usize, orig: Position, target: Position) {
+        assert!(self.is_movable(pid, orig, target));
+
+        // 敵の駒があれば保存して移動
+        self.usable[pid].extend(self.cells[target.index()].map(|c| c.piece));
+        self.cells[target.index()] = self.cells[orig.index()];
     }
 }
 
@@ -84,23 +68,12 @@ impl Default for Game {
 impl Game {
     pub fn new() -> Self {
         Self {
-            boards: [Board::new(), Board::new()],
+            board: Board::new(),
+            turn: 0,
         }
     }
 
-    pub fn composite_field(&self) -> [Option<(PieceKind, usize)>; 81] {
-        let mut res = [None; 81];
-        for (idx, (a, b)) in
-            Iterator::zip(self.boards[0].field.iter(), self.boards[1].field.iter()).enumerate()
-        {
-            res[idx] = a.map(|k| (k, 0));
-            res[opponent_pos(idx)] = b.map(|k| (k, 1));
-        }
-
-        res
-    }
-
-    pub fn do_move(&mut self, pid: usize, from: usize, to: usize) {
+    pub fn do_move(&mut self, pid: usize, from: Position, to: Position) {
         todo!()
     }
 }
