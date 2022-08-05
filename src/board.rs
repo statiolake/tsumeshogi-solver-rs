@@ -73,7 +73,7 @@ impl Game {
         }
     }
 
-    pub fn do_move(&mut self, pid: usize, from: Position, to: Position) {
-        todo!()
+    pub fn do_move(&mut self, pid: usize, orig: Position, target: Position) {
+        self.board.do_move(pid, orig, target);
     }
 }
